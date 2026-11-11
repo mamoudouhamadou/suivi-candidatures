@@ -4,12 +4,20 @@ Application web full-stack pour suivre ses candidatures de stage ou d'emploi : e
 
 > 🚧 En construction. Voir la [feuille de route](docs/FEUILLE_DE_ROUTE.md).
 
+## Fonctionnalités
+- Comptes utilisateurs : inscription et connexion ; chacun ne voit que ses candidatures
+- Tableau **kanban** par statut : glisser-déposer, ou liste déroulante pour le clavier et le tactile
+- Création et modification dans une fenêtre modale, avec les erreurs affichées sous chaque champ
+- Statistiques : nombre de candidatures, envoyées, taux d'entrevue
+- Thème clair/sombre automatique et affichage adapté au téléphone
+
 ## Stack
+- **Frontend :** React 19, TypeScript, Vite
 - **Backend :** Node.js, TypeScript, Express, Zod
 - **Base de données :** PostgreSQL 17 (Docker), Prisma ORM
-- **Sécurité :** comptes utilisateurs, mots de passe hachés (bcrypt), jetons JWT, données isolées par utilisateur
-- **Tests :** Vitest, Supertest (tests unitaires et tests d'intégration)
-- **À venir :** React, GitHub Actions
+- **Sécurité :** mots de passe hachés (bcrypt), jetons JWT, données isolées par utilisateur
+- **Tests :** Vitest, Supertest, Testing Library (tests unitaires, d'intégration et de composants)
+- **À venir :** Docker Compose pour toute l'application, GitHub Actions
 
 ## Démarrer
 
@@ -24,13 +32,26 @@ npx prisma migrate deploy     # crée les tables
 npm run dev                   # API sur http://localhost:3000
 ```
 
-Sans Docker, `npm run dev` fonctionne aussi : retire `DATABASE_URL` du `.env`, et les données seront gardées en mémoire.
+Dans un deuxième terminal :
+
+```bash
+cd frontend
+npm install
+npm run dev                   # interface sur http://localhost:5173
+```
+
+Ouvre http://localhost:5173 et crée un compte. En développement, Vite redirige `/api` vers l'API (port 3000).
+
+Sans Docker, l'API fonctionne aussi : retire `DATABASE_URL` du `.env`, et les données seront gardées en mémoire.
 
 ## Tests
 
 ```bash
-npm test                      # tests unitaires (aucune base requise)
+cd backend
+npm test                      # tests unitaires de l'API (aucune base requise)
 npm run test:integration      # tests contre PostgreSQL (Docker doit tourner)
+cd ../frontend
+npm test                      # tests des composants React
 ```
 
 ### Dépannage (Windows)

@@ -121,3 +121,54 @@ Pour chaque étape : ce qui a été fait, les notions à comprendre, et les ques
 1. Avec l'extension REST Client ou Postman : inscris-toi, copie le jeton, puis appelle `GET /api/candidatures` avec et sans l'en-tête.
 2. Colle ton jeton sur **jwt.io** et lis son contenu. Change un caractère du jeton et rappelle l'API : tu obtiens `401`.
 3. Ajoute une limite de tentatives sur `/api/auth/connexion` avec le paquet `express-rate-limit` (par exemple 5 essais par 15 minutes), avec son test.
+
+---
+
+## Étape 4 : interface React
+
+### Ordre de lecture
+1. `frontend/index.html`, puis `src/main.tsx` : React prend le contrôle de `<div id="racine">`.
+2. `src/types.ts` : les mêmes formes de données que l'API.
+3. `src/api.ts` : une seule fonction pour tous les appels HTTP.
+4. `src/auth.tsx` : le **contexte** d'authentification.
+5. `src/App.tsx` : connecté ou non ?
+6. `src/composants/PageConnexion.tsx`.
+7. `src/useCandidatures.ts`, puis `TableauDeBord.tsx`, `TableauKanban.tsx` et `FormulaireCandidature.tsx`.
+8. `vite.config.ts` (le proxy), puis `src/tests/`.
+
+### Notions clés
+- **Composant :** une fonction qui retourne du JSX (du « HTML » dans du TypeScript). L'interface est un arbre de composants : `App` → `TableauDeBord` → `TableauKanban` → les cartes.
+- **Props :** les paramètres qu'un parent passe à un enfant, par exemple `candidatures` et `onSupprimer`. Les données descendent, et les événements remontent par des fonctions (`onChangerStatut`).
+- **État (`useState`) :** une valeur qui, quand elle change, fait **redessiner** le composant. On ne modifie jamais l'état directement : on crée une nouvelle liste (`liste.map(...)`, `[nouvelle, ...liste]`).
+- **Effet (`useEffect`) :** du code qui s'exécute *après* l'affichage, par exemple pour charger les données au démarrage. La variable `annule` évite de mettre à jour un composant qui a disparu entre-temps.
+- **Contexte (`createContext`, `useContext`) :** rend l'utilisateur connecté et la fonction `api` accessibles partout, sans les passer de parent en enfant à chaque niveau (*prop drilling*).
+- **Hook personnalisé (`useCandidatures`) :** regroupe l'état et la logique réutilisables. Les composants restent simples et ne font qu'afficher.
+- **Formulaire contrôlé :** la valeur de chaque `<input>` vient de l'état (`value={entreprise}`) et chaque frappe le met à jour (`onChange`). React est la seule « source de vérité ».
+- **Proxy Vite :** en développement, le navigateur appelle `localhost:5173/api/…` et Vite transmet à `localhost:3000`. Pour le navigateur, c'est la même origine, donc pas de problème de **CORS**.
+- **Accessibilité :** des `<label htmlFor>` reliés aux champs ; `aria-invalid` et `aria-describedby` pour les erreurs ; `role="alert"` pour que les lecteurs d'écran annoncent les messages. Le statut peut se changer au clavier avec la liste déroulante, pas seulement au glisser-déposer. Le `<dialog>` natif gère la touche Échap et le focus.
+- **Sécurité côté client :**
+  - React échappe automatiquement le texte affiché, donc une note qui contient `<script>` s'affiche comme du texte (protection XSS) ;
+  - `rel="noopener noreferrer"` sur les liens externes ;
+  - un `401` reçu déconnecte automatiquement.
+- **Où garder le jeton ?** Ici dans `localStorage` : c'est simple, et la session survit au rechargement de la page. Le risque : un script malveillant injecté (XSS) pourrait le lire. L'alternative pro est un cookie `HttpOnly` (illisible par JavaScript), mais il faut alors se protéger contre le CSRF. C'est un compromis à savoir expliquer.
+
+### Tests de composants
+- **Testing Library** teste comme un utilisateur : on cherche par **rôle et texte** (`getByRole("button", { name: "Se connecter" })`), pas par classe CSS. Bonus : si le test trouve l'élément, il est accessible.
+- **`vi.spyOn(globalThis, "fetch")`** remplace le réseau par une fausse API : on contrôle chaque réponse (succès, 401, 400 avec des détails).
+- **`vi.fn()`** est un « espion » qui enregistre ses appels : `expect(onChangerStatut).toHaveBeenCalledWith(2, "offre")`.
+- Un test a révélé que jsdom (le faux navigateur) ne connaît pas `dialog.showModal()`. On a ajouté une solution de repli dans le composant.
+
+### Vérifié en vrai
+Inscription, ajout avec le formulaire, rechargement de la page (la session est restaurée), changement de statut (enregistré dans PostgreSQL), affichage sur téléphone (sans débordement : le kanban défile de colonne en colonne). Quand on supprime le compte, l'application revient seule à la connexion. Deux bogues d'affichage sur téléphone ont été trouvés et corrigés : la carte de connexion débordait, et le bouton « Se déconnecter » passait sur deux lignes.
+
+### Questions possibles en entrevue
+- *Différence entre props et état ?* → Les props viennent du parent et sont en lecture seule ; l'état appartient au composant et peut changer.
+- *Pourquoi un `key` dans les listes ?* → Pour que React reconnaisse chaque élément d'un affichage à l'autre (on utilise l'`id`, jamais l'index si la liste peut changer d'ordre).
+- *Comment avez-vous géré l'authentification côté client ?* → Un contexte React qui garde l'utilisateur et le jeton, restaure la session au démarrage avec `/auth/moi` et déconnecte sur un `401`.
+- *`localStorage` ou cookie `HttpOnly` ?* → Voir le compromis XSS/CSRF ci-dessus.
+- *Comment testez-vous un composant qui appelle une API ?* → En remplaçant `fetch` par un mock (Vitest), puis en vérifiant ce qui s'affiche et ce qui a été envoyé.
+
+### Exercices pour toi
+1. Lance l'application (README, section « Démarrer »), crée ton compte et ajoute tes **vraies** candidatures de stage.
+2. Ajoute un champ de recherche au-dessus du kanban, qui filtre par entreprise (indice : un `useState` et un `.filter()` avant de passer la liste au `TableauKanban`), avec son test.
+3. Ajoute une confirmation plus jolie que `window.confirm` pour la suppression, en réutilisant `<dialog>`.

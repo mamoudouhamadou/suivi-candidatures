@@ -1,0 +1,154 @@
+/* Variables de couleur : un seul endroit à changer, et le thème sombre suit automatiquement. */
+:root {
+  --fond: #f5f7fb;
+  --surface: #ffffff;
+  --texte: #0f172a;
+  --texte-doux: #64748b;
+  --bordure: #e2e8f0;
+  --principal: #2563eb;
+  --principal-fonce: #1d4ed8;
+  --danger: #dc2626;
+  --ombre: 0 1px 2px rgb(15 23 42 / 0.06), 0 2px 8px rgb(15 23 42 / 0.05);
+  --rayon: 10px;
+
+  --s-a_envoyer: #94a3b8;
+  --s-envoyee: #3b82f6;
+  --s-entrevue: #f59e0b;
+  --s-offre: #16a34a;
+  --s-refusee: #ef4444;
+
+  color-scheme: light dark;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  line-height: 1.45;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fond: #0b1120;
+    --surface: #131c2e;
+    --texte: #e2e8f0;
+    --texte-doux: #94a3b8;
+    --bordure: #24314a;
+    --principal: #3b82f6;
+    --principal-fonce: #60a5fa;
+    --ombre: 0 1px 2px rgb(0 0 0 / 0.4);
+  }
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--fond); color: var(--texte); }
+h1, h2, h3, p { margin: 0; }
+
+/* ---------- Boutons et champs ---------- */
+.bouton {
+  font: inherit; font-weight: 600; cursor: pointer;
+  padding: 0.55rem 1rem; border-radius: 8px;
+  border: 1px solid var(--bordure); background: var(--surface); color: var(--texte);
+}
+.bouton:hover { border-color: var(--texte-doux); }
+.bouton.principal { background: var(--principal); border-color: var(--principal); color: #fff; }
+.bouton.principal:hover { background: var(--principal-fonce); }
+.bouton:disabled { opacity: 0.6; cursor: wait; }
+.bouton.large { width: 100%; padding: 0.7rem; }
+.lien { font: inherit; background: none; border: none; color: var(--principal); cursor: pointer; padding: 0; font-weight: 600; }
+.icone { font: inherit; background: none; border: 1px solid transparent; border-radius: 6px; cursor: pointer; color: var(--texte-doux); padding: 0.15rem 0.4rem; }
+.icone:hover { border-color: var(--bordure); color: var(--texte); }
+.icone.danger:hover { color: var(--danger); }
+:focus-visible { outline: 2px solid var(--principal); outline-offset: 2px; }
+
+.champ { display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.9rem; }
+.champ label { font-size: 0.9rem; font-weight: 600; }
+input, select, textarea {
+  font: inherit; color: inherit; background: var(--fond);
+  border: 1px solid var(--bordure); border-radius: 8px; padding: 0.55rem 0.7rem;
+}
+input[aria-invalid="true"] { border-color: var(--danger); }
+.aide { font-size: 0.8rem; color: var(--texte-doux); }
+.erreur-champ { font-size: 0.8rem; color: var(--danger); }
+.alerte {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger); border-radius: 8px; padding: 0.6rem 0.8rem; margin: 0.5rem 0 1rem;
+}
+.chargement { color: var(--texte-doux); padding: 2rem; text-align: center; }
+.plein-ecran { min-height: 100vh; display: grid; place-items: center; }
+
+/* ---------- Page de connexion ---------- */
+/* minmax(0, 400px) : la colonne peut rétrécir sous 400 px sur téléphone (sinon la carte déborde). */
+.page-connexion { min-height: 100vh; display: grid; grid-template-columns: minmax(0, 400px); place-content: center; padding: 1rem; }
+.carte-connexion {
+  width: 100%; background: var(--surface);
+  border: 1px solid var(--bordure); border-radius: 14px; padding: 2rem; box-shadow: var(--ombre);
+}
+.carte-connexion h1 { font-size: 1.5rem; }
+.sous-titre { color: var(--texte-doux); margin: 0.3rem 0 1.5rem; }
+.bascule { margin-top: 1.2rem; text-align: center; color: var(--texte-doux); font-size: 0.95rem; }
+
+/* ---------- Tableau de bord ---------- */
+.entete {
+  display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+  padding: 0.9rem 1.5rem; background: var(--surface); border-bottom: 1px solid var(--bordure);
+}
+.entete h1 { font-size: 1.15rem; }
+.utilisateur { display: flex; align-items: center; gap: 0.8rem; color: var(--texte-doux); }
+.utilisateur .bouton { white-space: nowrap; }
+.tableau-de-bord main { padding: 1.5rem; }
+
+.barre { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.2rem; }
+.stats { display: flex; gap: 0.8rem; margin: 0; flex-wrap: wrap; }
+.stats div { background: var(--surface); border: 1px solid var(--bordure); border-radius: var(--rayon); padding: 0.5rem 1rem; min-width: 120px; }
+.stats dt { font-size: 0.8rem; color: var(--texte-doux); }
+.stats dd { margin: 0; font-size: 1.4rem; font-weight: 700; }
+
+/* ---------- Kanban ---------- */
+.kanban { display: grid; grid-template-columns: repeat(5, minmax(220px, 1fr)); gap: 1rem; overflow-x: auto; padding-bottom: 0.5rem; }
+.colonne {
+  background: color-mix(in srgb, var(--surface) 60%, var(--fond));
+  border: 1px solid var(--bordure); border-radius: var(--rayon); padding: 0.8rem; min-height: 200px;
+  border-top: 4px solid var(--couleur-statut);
+  transition: background 0.15s;
+}
+.colonne.survolee { background: color-mix(in srgb, var(--couleur-statut) 12%, var(--surface)); }
+.statut-a_envoyer { --couleur-statut: var(--s-a_envoyer); }
+.statut-envoyee { --couleur-statut: var(--s-envoyee); }
+.statut-entrevue { --couleur-statut: var(--s-entrevue); }
+.statut-offre { --couleur-statut: var(--s-offre); }
+.statut-refusee { --couleur-statut: var(--s-refusee); }
+.colonne h2 { font-size: 0.95rem; display: flex; justify-content: space-between; margin-bottom: 0.7rem; }
+.compteur { background: var(--bordure); border-radius: 999px; padding: 0 0.55rem; font-size: 0.8rem; }
+.colonne ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.6rem; }
+.vide { color: var(--texte-doux); font-size: 0.85rem; text-align: center; padding: 1rem 0; }
+
+.carte {
+  background: var(--surface); border: 1px solid var(--bordure); border-radius: 8px;
+  padding: 0.75rem; box-shadow: var(--ombre); cursor: grab;
+  display: flex; flex-direction: column; gap: 0.25rem;
+}
+.carte:active { cursor: grabbing; }
+.carte h3 { font-size: 1rem; }
+.poste { color: var(--texte-doux); font-size: 0.9rem; }
+.meta { font-size: 0.8rem; color: var(--texte-doux); }
+.notes { font-size: 0.85rem; white-space: pre-wrap; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.lien-offre { font-size: 0.85rem; color: var(--principal); text-decoration: none; }
+.pied-carte { display: flex; align-items: center; gap: 0.3rem; margin-top: 0.4rem; }
+.pied-carte select { flex: 1; padding: 0.25rem 0.4rem; font-size: 0.85rem; }
+
+/* ---------- Fenêtre modale ---------- */
+.modale {
+  border: 1px solid var(--bordure); border-radius: 14px; padding: 1.5rem;
+  width: min(560px, calc(100vw - 2rem)); background: var(--surface); color: var(--texte);
+}
+.modale::backdrop { background: rgb(15 23 42 / 0.5); }
+.modale h2 { font-size: 1.2rem; margin-bottom: 1rem; }
+.grille-champs { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1rem; }
+.pleine-largeur { grid-column: 1 / -1; }
+.actions { display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 0.5rem; }
+
+/* ---------- Petits écrans ---------- */
+@media (max-width: 700px) {
+  .entete { padding: 0.8rem 1rem; }
+  .tableau-de-bord main { padding: 1rem; }
+  .kanban { grid-template-columns: repeat(5, 80vw); scroll-snap-type: x mandatory; }
+  .colonne { scroll-snap-align: start; }
+  .grille-champs { grid-template-columns: 1fr; }
+  .utilisateur span { display: none; }
+}
