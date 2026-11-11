@@ -2,7 +2,7 @@
 # Node n'est donc PAS présent dans l'image finale (seulement nginx + HTML/CSS/JS).
 
 # ---------- Étape 1 : compilation ----------
-FROM node:24-alpine AS build
+FROM node:26-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 # Certificat racine facultatif (voir backend/Dockerfile)
