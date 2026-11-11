@@ -4,6 +4,9 @@
 
 Application web full-stack pour suivre ses candidatures de stage ou d'emploi : entreprise, poste, statut (à envoyer → envoyée → entrevue → offre/refus), dates et notes.
 
+**🌐 Démo en ligne : https://suivi-candidatures-3vga.onrender.com**
+<sub>Hébergement gratuit : la première visite peut prendre environ 1 minute (le serveur se réveille).</sub>
+
 > 🚧 En construction. Voir la [feuille de route](docs/FEUILLE_DE_ROUTE.md).
 
 ## Fonctionnalités
