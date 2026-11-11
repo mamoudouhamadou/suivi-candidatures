@@ -23,6 +23,18 @@ if (URL_BD) {
   depots = { candidatures: creerDepotMemoire(), utilisateurs: creerDepotUtilisateursMemoire() };
 }
 
-creerApp({ ...depots, secretJwt: SECRET_JWT }).listen(PORT, () => {
+// Options de déploiement (toutes facultatives) :
+//   DOSSIER_STATIQUE : l'API sert aussi l'interface React compilée (un seul service à héberger)
+//   DERRIERE_PROXY=1 : l'application est derrière un proxy (Render, nginx…) → vraie IP pour la limite de tentatives
+//   RENDER_GIT_COMMIT : fourni automatiquement par Render ; affiché par /api/sante
+const app = creerApp({
+  ...depots,
+  secretJwt: SECRET_JWT,
+  dossierStatique: process.env.DOSSIER_STATIQUE,
+  derriereProxy: process.env.DERRIERE_PROXY === "1",
+  version: process.env.RENDER_GIT_COMMIT ?? process.env.VERSION ?? "dev",
+});
+
+app.listen(PORT, () => {
   console.log(`API démarrée sur http://localhost:${PORT} (${URL_BD ? "PostgreSQL" : "mémoire"})`);
 });

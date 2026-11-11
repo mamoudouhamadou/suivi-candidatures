@@ -1,0 +1,21 @@
+# « Blueprint » Render : l'infrastructure décrite dans un fichier (Infrastructure as Code).
+# Render → New → Blueprint → choisir ce dépôt : le service est créé à partir de ce fichier.
+# Doc : https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: suivi-candidatures
+    runtime: docker
+    plan: free
+    region: ohio # proche du Québec parmi les régions offertes
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/sante
+    # Pas de déploiement automatique à chaque push : c'est GitHub Actions qui déclenche le
+    # déploiement, APRÈS que tous les tests soient passés et que les migrations soient appliquées.
+    autoDeployTrigger: "off"
+    envVars:
+      - key: JWT_SECRET
+        generateValue: true # Render génère une longue valeur aléatoire (jamais dans le code)
+      - key: DATABASE_URL
+        sync: false # à saisir dans le tableau de bord Render : l'URL de la base Neon

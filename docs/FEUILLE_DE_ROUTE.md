@@ -53,6 +53,6 @@ Navigateur (React) ──HTTP/JSON──> API Express ──Prisma──> Postgr
 | 4 | Interface React : liste, formulaire, tableau kanban par statut | React, état, appels API | ✅ |
 | 5 | Docker Compose : toute l'application en une commande | Conteneurs | ✅ |
 | 6 | GitHub Actions : tests à chaque push | CI/CD | ✅ |
-| 7 | Statistiques, rappels de relance, déploiement en ligne | Finition, cloud | ⬜ |
+| 7 | Statistiques, rappels de relance, déploiement en ligne | Finition, cloud | 🟡 Statistiques ✅, déploiement prêt ✅ (comptes à créer), rappels de relance ⬜ |
 
 Après chaque étape : lire le journal (`docs/JOURNAL.md`), refaire les commandes soi-même, faire un commit.

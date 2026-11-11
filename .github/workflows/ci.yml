@@ -14,10 +14,11 @@ on:
 permissions:
   contents: read
 
-# Un nouveau push annule l'exécution précédente encore en cours sur la même branche.
+# Sur une pull request, un nouveau push annule l'exécution précédente encore en cours.
+# Jamais sur main : on n'interrompt pas un déploiement en plein milieu.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # ---------------------------------------------------------------- API
@@ -139,3 +140,82 @@ jobs:
       - name: Arrêter
         if: always()
         run: docker compose down -v
+
+      - name: Image de déploiement (un seul conteneur API + interface)
+        run: |
+          set -euo pipefail
+          docker build -t deploiement .
+          # Démarrage sans base de données (mode mémoire) : on vérifie seulement que l'image fonctionne
+          docker run -d --name deploiement -p 3000:3000 \
+            -e JWT_SECRET="$JWT_SECRET" -e VERSION="${{ github.sha }}" deploiement
+          for _ in $(seq 1 30); do curl -fsS http://localhost:3000/api/sante > /dev/null 2>&1 && break; sleep 1; done
+          curl -fsS http://localhost:3000/api/sante | jq -e '.version == "${{ github.sha }}"'
+          curl -fsS http://localhost:3000/ | grep -q '<div id="racine">'
+          docker rm -f deploiement
+
+  # ------------------------------------------------- Déploiement continu (CD)
+  # Seulement sur main, après TOUS les tests, et une fois l'hébergement configuré
+  # (variable de dépôt DEPLOIEMENT_ACTIF = true ; voir docs/DEPLOIEMENT.md).
+  deploy:
+    name: Déploiement (Neon + Render)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: [docker]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DEPLOIEMENT_ACTIF == 'true'
+    environment:
+      name: production
+      url: ${{ vars.URL_PRODUCTION }}
+    concurrency:
+      group: deploiement-production
+      cancel-in-progress: false # un déploiement à la fois, jamais interrompu
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Installer le CLI Prisma
+        working-directory: backend
+        run: npm ci
+
+      # Render (gratuit) ne peut pas lancer de commande avant un déploiement :
+      # la CI applique donc les migrations sur la base de production (Neon) d'abord.
+      - name: Appliquer les migrations (Neon)
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npx prisma migrate deploy
+
+      - name: Déclencher le déploiement (Render)
+        env:
+          CROCHET: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: curl -fsS -X POST "${CROCHET}&ref=${{ github.sha }}" > /dev/null
+
+      - name: Attendre la nouvelle version en ligne
+        env:
+          URL: ${{ vars.URL_PRODUCTION }}
+        run: |
+          # Render construit l'image (quelques minutes) ; on attend que /api/sante annonce ce commit.
+          for i in $(seq 1 60); do
+            VERSION=$(curl -fsS --max-time 60 "$URL/api/sante" 2>/dev/null | jq -r .version || true)
+            if [ "$VERSION" = "${{ github.sha }}" ]; then
+              echo "✅ Version ${{ github.sha }} en ligne : $URL"
+              exit 0
+            fi
+            echo "Version en ligne : ${VERSION:-indisponible}… (essai $i/60)"
+            sleep 20
+          done
+          echo "❌ La nouvelle version n'est pas en ligne après 20 minutes"
+          exit 1
+
+      - name: Test de fumée en production
+        env:
+          URL: ${{ vars.URL_PRODUCTION }}
+        run: |
+          set -euo pipefail
+          curl -fsS "$URL/" | grep -q '<div id="racine">'
+          test "$(curl -s -o /dev/null -w '%{http_code}' "$URL/api/candidatures")" = "401"
+          echo "✅ Production fonctionnelle"

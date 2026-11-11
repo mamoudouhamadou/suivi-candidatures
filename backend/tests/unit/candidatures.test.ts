@@ -25,7 +25,7 @@ describe("GET /api/sante", () => {
   it("répond ok sans authentification", async () => {
     const res = await request(app).get("/api/sante");
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ statut: "ok" });
+    expect(res.body).toEqual({ statut: "ok", version: "dev" });
   });
 });
 

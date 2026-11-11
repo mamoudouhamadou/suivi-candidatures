@@ -1,0 +1,13 @@
+# Pour le Dockerfile de déploiement à la racine : ne pas envoyer ces fichiers à Docker
+**/node_modules
+**/dist
+backend/src/generated
+**/.env
+**/.env.*
+!**/.env.example
+.git
+.github
+.idea
+.vscode
+docs
+**/*.log

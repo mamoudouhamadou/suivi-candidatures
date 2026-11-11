@@ -293,3 +293,46 @@ Inscription, ajout avec le formulaire, rechargement de la page (la session est r
 1. Pousse le projet sur GitHub (voir ci-dessous), puis regarde l'onglet **Actions** : clique sur l'exécution et ouvre les étapes.
 2. Casse volontairement un test (change `"ok"` en `"ko"` dans `tests/unit/candidatures.test.ts`), puis pousse : la CI devient rouge ❌. Annule ensuite le changement.
 3. Crée une branche et ouvre une *pull request* : la CI s'exécute dessus avant la fusion.
+
+---
+
+## Étape 7 : mise en ligne (déploiement continu)
+
+### Ordre de lecture
+1. `docs/DEPLOIEMENT.md` : le schéma et la marche à suivre.
+2. `Dockerfile` (à la racine) : l'image de déploiement en un seul conteneur.
+3. `backend/src/app.ts` : `helmet`, `rateLimit`, `dossierStatique`, `derriereProxy`, `version`.
+4. `render.yaml`, puis le job `deploy` de `.github/workflows/ci.yml`.
+5. `backend/tests/unit/deploiement.test.ts`.
+
+### Choix d'architecture (et pourquoi)
+| Choix | Raison |
+|---|---|
+| **Neon** pour PostgreSQL | Gratuit **sans expiration**. La base gratuite de Render est supprimée après 30 jours. Neon est *serverless* : la base s'arrête après 5 minutes sans requête et redémarre toute seule. |
+| **Render** pour l'application | Exécute une image Docker gratuitement. Contrepartie : le service s'endort après 15 minutes sans visite. |
+| **Un seul conteneur** (l'API sert aussi l'interface) | L'offre gratuite donne un service. En local, Compose garde nginx et l'API séparés : deux façons valables, chacune adaptée à son contexte. |
+| **Migrations lancées par la CI** | La commande de pré-déploiement de Render est réservée aux offres payantes. La CI applique donc les migrations sur Neon *avant* de déclencher Render. |
+| **`autoDeployTrigger: off` + crochet de déploiement** | Render ne déploie que si **tous** les tests sont passés. Un commit qui casse les tests n'arrive jamais en production. |
+| **`render.yaml`** (*Blueprint*) | L'infrastructure est décrite dans un fichier versionné (*Infrastructure as Code*), pas en cliquant dans une console. |
+
+### Notions clés
+- **CD (déploiement continu) :** chaque commit sur `main` qui passe la CI est mis en production automatiquement.
+- **Vérifier que le bon code est en ligne :** `/api/sante` renvoie la `version`, c'est-à-dire le commit Git, fourni par Render dans `RENDER_GIT_COMMIT`. Le job attend que la production annonce **son** commit, puis lance un **test de fumée** (*smoke test*) : la page s'affiche et l'API répond `401` sans jeton.
+- **Secrets ou variables GitHub :** `DATABASE_URL` et le crochet Render sont des **secrets** (chiffrés, masqués dans les journaux). L'adresse publique est une **variable**. `JWT_SECRET` est généré par Render et n'apparaît nulle part.
+- **Environnement GitHub `production` :** le déploiement apparaît dans l'onglet *Environments* avec son URL. Un `concurrency` assure qu'il n'y a qu'un déploiement à la fois et qu'il n'est jamais interrompu.
+- **Sécurité d'une application publique :**
+  - **helmet** ajoute les en-têtes de sécurité (CSP, `X-Frame-Options`, `nosniff`, HSTS), comme nginx en local ;
+  - **limite de tentatives** (`express-rate-limit`) : 20 requêtes par 15 minutes et par IP sur `/api/auth`, puis `429 Too Many Requests`. Ça freine la force brute sur les mots de passe ;
+  - **`trust proxy`** : derrière Render, l'IP vue par Express est celle du proxy. On fait confiance à **un** proxy pour lire la vraie IP dans `X-Forwarded-For`, mais pas plus : sinon un attaquant pourrait inventer son IP pour échapper à la limite.
+
+### Vérifié localement
+- 27 tests unitaires (7 nouveaux : limite 429, en-têtes, version, service de l'interface, cache, route `/api` inconnue, refus de démarrer sans `index.html`) et 9 tests d'intégration.
+- L'image de déploiement (92 Mo) a été lancée comme sur Render (port 10000, PostgreSQL) : santé et version, interface, routes de l'application, cache, création, limite par IP (le 21e essai donne `429`, une autre IP passe), utilisateur `node`, *healthcheck* `healthy`, et aucune erreur de console dans le navigateur.
+- actionlint : 0 erreur.
+- ⚠️ **Pas encore vérifié :** le vrai déploiement. Il faut d'abord créer les comptes Neon et Render (voir `docs/DEPLOIEMENT.md`).
+
+### Questions possibles en entrevue
+- *Comment déployez-vous ?* → Par GitHub Actions : tests, puis migrations, puis déploiement par crochet, puis vérification de la version et test de fumée. Rien n'arrive en production sans tests verts.
+- *Et si une migration casse la production ?* → On garde les migrations **compatibles avec l'ancienne version** (ajouter avant de supprimer), parce qu'elles s'appliquent avant le nouveau code. On peut revenir au déploiement précédent dans Render.
+- *Pourquoi limiter les tentatives de connexion ?* → Contre la force brute et le *credential stuffing* (essayer des mots de passe volés ailleurs).
+- *Limites de votre hébergement ?* → Le démarrage à froid (environ 1 minute) et un seul conteneur. Pour un vrai produit, on prendrait une offre payante sans mise en veille, plusieurs instances et une sauvegarde de la base.

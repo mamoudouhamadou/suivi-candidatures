@@ -20,7 +20,9 @@ Application web full-stack pour suivre ses candidatures de stage ou d'emploi : e
 - **Sécurité :** mots de passe hachés (bcrypt), jetons JWT, données isolées par utilisateur
 - **Tests :** Vitest, Supertest, Testing Library (tests unitaires, d'intégration et de composants)
 - **Conteneurs :** Docker (images multi-stage, utilisateur non-root), Docker Compose, nginx (reverse proxy et en-têtes de sécurité)
-- **CI/CD :** GitHub Actions (types, tests unitaires, tests d'intégration avec PostgreSQL, build Docker et test de bout en bout à chaque push), Dependabot
+- **CI/CD :** GitHub Actions (types, tests unitaires, tests d'intégration avec PostgreSQL, build Docker et test de bout en bout à chaque push, puis déploiement continu), Dependabot
+- **Hébergement :** Render (Docker) et Neon (PostgreSQL serverless) ; voir [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md)
+- **Sécurité en production :** en-têtes helmet (CSP, anti-clickjacking), limite de tentatives de connexion (429)
 
 ## Lancer avec Docker (le plus simple)
 
