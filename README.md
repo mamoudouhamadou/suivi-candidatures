@@ -32,6 +32,9 @@ npm test                      # tests unitaires (aucune base requise)
 npm run test:integration      # tests contre PostgreSQL (Docker doit tourner)
 ```
 
+### Dépannage (Windows)
+Si Docker Desktop affiche « The file cannot be accessed by the system » à propos d'un fichier `.sock` : quitte Docker Desktop et renomme le dossier qui contient ce fichier, par exemple `%LOCALAPPDATA%\Docker\run`. Docker en recréera un neuf au démarrage suivant.
+
 ## API
 
 | Méthode | URL | Description | Réponses |
