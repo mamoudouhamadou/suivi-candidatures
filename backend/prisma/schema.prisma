@@ -1,0 +1,33 @@
+// Schéma de la base de données : Prisma en déduit les tables SQL (migrations)
+// et un client TypeScript typé (src/generated/prisma).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Statut {
+  a_envoyer
+  envoyee
+  entrevue
+  offre
+  refusee
+}
+
+model Candidature {
+  id         Int       @id @default(autoincrement())
+  entreprise String
+  poste      String
+  statut     Statut    @default(a_envoyer)
+  dateEnvoi  DateTime? @db.Date
+  lien       String?
+  notes      String?
+  creeLe     DateTime  @default(now())
+  modifieLe  DateTime  @updatedAt
+
+  @@index([statut])
+}

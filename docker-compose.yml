@@ -1,0 +1,21 @@
+# Base de données PostgreSQL pour le développement.
+# Démarrer :  docker compose up -d     Arrêter :  docker compose down
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: suivi
+      POSTGRES_PASSWORD: suivi_dev   # mot de passe de développement local seulement
+      POSTGRES_DB: suivi_candidatures
+    ports:
+      - "5433:5432"   # 5433 sur ta machine, pour ne pas entrer en conflit avec un PostgreSQL déjà installé
+    volumes:
+      - donnees_pg:/var/lib/postgresql/data   # les données survivent à l'arrêt du conteneur
+      - ./docker/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U suivi -d suivi_candidatures"]
+      interval: 5s
+      retries: 10
+
+volumes:
+  donnees_pg:
