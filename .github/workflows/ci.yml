@@ -1,0 +1,141 @@
+# Intégration continue (CI) : à chaque push et à chaque pull request,
+# GitHub démarre des machines Linux neuves et vérifie que tout fonctionne.
+# Si une étape échoue, le commit est marqué ❌ et on le voit avant de fusionner.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch: # bouton « Run workflow » dans l'onglet Actions
+
+# Principe du moindre privilège : le workflow peut seulement LIRE le code.
+permissions:
+  contents: read
+
+# Un nouveau push annule l'exécution précédente encore en cours sur la même branche.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------- API
+  backend:
+    name: API (types, tests, intégration)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+
+    # Un vrai PostgreSQL pour les tests d'intégration, sur le même port qu'en local (.env.test)
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: suivi
+          POSTGRES_PASSWORD: suivi_dev
+          POSTGRES_DB: suivi_candidatures_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U suivi"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm # réutilise le cache npm entre les exécutions (plus rapide)
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Installer les dépendances (+ prisma generate)
+        run: npm ci
+
+      - name: Vérifier les types
+        run: npm run typecheck
+
+      - name: Tests unitaires
+        run: npm test
+
+      - name: Tests d'intégration (migrations + PostgreSQL)
+        run: npm run test:integration
+
+      - name: Compiler
+        run: npm run build
+
+  # ---------------------------------------------------------- Interface
+  frontend:
+    name: Interface (types, tests, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Tests des composants
+        run: npm test
+
+      - name: Vérifier les types et compiler
+        run: npm run build
+
+  # ------------------------------------------ Application complète (Docker)
+  docker:
+    name: Docker (build + test de bout en bout)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [backend, frontend] # seulement si les deux premiers jobs ont réussi
+    env:
+      JWT_SECRET: secret-de-ci-qui-fait-au-moins-32-caracteres-de-long
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Construire et démarrer les 4 services
+        run: docker compose up -d --build --wait --wait-timeout 180
+
+      - name: Test de bout en bout (via nginx)
+        run: |
+          set -euo pipefail
+          URL=http://localhost:8080
+
+          # La page et l'API répondent
+          curl -fsS "$URL/" | grep -q '<div id="racine">'
+          curl -fsS "$URL/api/sante" | grep -q '"ok"'
+
+          # Inscription → jeton → création → liste
+          JETON=$(curl -fsS -X POST "$URL/api/auth/inscription" \
+            -H "Content-Type: application/json" \
+            -d '{"courriel":"ci@exemple.test","motDePasse":"motdepasse-ci"}' | jq -r .jeton)
+          curl -fsS -X POST "$URL/api/candidatures" \
+            -H "Authorization: Bearer $JETON" -H "Content-Type: application/json" \
+            -d '{"entreprise":"GitHub","poste":"Stagiaire"}' > /dev/null
+          test "$(curl -fsS "$URL/api/candidatures" -H "Authorization: Bearer $JETON" | jq length)" = "1"
+
+          # Sans jeton → 401 ; en-tête de sécurité présent
+          test "$(curl -s -o /dev/null -w '%{http_code}' "$URL/api/candidatures")" = "401"
+          curl -fsSI "$URL/" | grep -qi "x-frame-options: DENY"
+          echo "✅ Application complète fonctionnelle"
+
+      - name: Journaux des conteneurs (en cas d'échec)
+        if: failure()
+        run: docker compose logs --no-color
+
+      - name: Arrêter
+        if: always()
+        run: docker compose down -v

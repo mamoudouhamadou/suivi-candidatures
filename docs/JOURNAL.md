@@ -247,3 +247,42 @@ Inscription, ajout avec le formulaire, rechargement de la page (la session est r
 1. Lance `docker compose up -d --build` et ouvre http://localhost:8081 (le port de ton `.env`).
 2. Lance `docker image ls` et compare la taille de l'image de l'API à celle de l'étape `build` (`docker build --target build -t essai ./backend`).
 3. Lance `docker compose stop api` : que montre l'interface ? Relance-la avec `docker compose start api`.
+
+---
+
+## Étape 6 : intégration continue avec GitHub Actions
+
+### Ordre de lecture
+1. `.github/workflows/ci.yml` : les 3 jobs.
+2. `.github/dependabot.yml`.
+3. Le badge en haut du `README.md`.
+
+### Notions clés
+- **CI (intégration continue) :** à chaque `push` ou *pull request*, GitHub démarre des machines Linux **neuves** et refait tout depuis zéro : installation, types, tests, construction. Si quelque chose casse, le commit est marqué ❌. Ça prouve aussi que le projet ne dépend pas de « ma machine ».
+- **Workflow → jobs → étapes :** les jobs `backend` et `frontend` tournent **en parallèle**. Le job `docker` attend qu'ils réussissent (`needs`), parce qu'il ne sert à rien de construire des images si les tests échouent.
+- **Conteneur de service :** le job `backend` démarre un vrai PostgreSQL à côté de lui (`services: postgres`). Il utilise le même port qu'en local (5433), donc les tests d'intégration et les migrations tournent sans changer `.env.test`.
+- **Test de bout en bout (*E2E*) :** le job `docker` lance les 4 conteneurs, puis simule un utilisateur avec `curl` : page, santé, inscription, création, liste, `401` sans jeton, en-tête de sécurité. C'est le niveau de test le plus proche de la réalité.
+- **Pyramide des tests :** beaucoup de tests unitaires (rapides), moins de tests d'intégration (base réelle), et quelques tests de bout en bout (lents, mais très réalistes). Le projet a les trois.
+- **Cache npm** (`cache: npm`) : les dépendances téléchargées sont réutilisées d'une exécution à l'autre, ce qui rend la CI plus rapide.
+- **Sécurité du workflow :**
+  - `permissions: contents: read` : le workflow ne peut que **lire** le dépôt (principe du moindre privilège) ;
+  - aucun vrai secret : le `JWT_SECRET` du job est jetable et ne sert qu'à la CI.
+- **`concurrency` :** un nouveau push annule l'exécution précédente encore en cours sur la même branche, pour ne pas gaspiller de minutes de CI.
+- **Dependabot :** il ouvre des *pull requests* de mise à jour (npm, images Docker, actions). La CI les teste automatiquement, et on fusionne seulement si tout est vert. Les mises à jour mineures sont regroupées.
+- **Badge :** l'image en haut du README montre l'état de la CI de la branche `main`. Un recruteur voit tout de suite que le projet est testé.
+
+### Vérifié localement
+- **actionlint** (le vérificateur officieux de référence pour GitHub Actions, avec shellcheck pour les scripts) : 0 erreur.
+- Le script de bout en bout du job `docker` a été exécuté contre la version Docker locale : `✅ Application complète fonctionnelle`.
+- ⚠️ Le workflow lui-même ne tournera qu'une fois le projet poussé sur GitHub.
+
+### Questions possibles en entrevue
+- *Qu'est-ce que la CI/CD ?* → **CI** : intégrer et tester automatiquement chaque changement. **CD** : livrer ou déployer automatiquement ce qui a passé la CI (la prochaine étape).
+- *Que vérifie votre pipeline ?* → Les types, 20 tests unitaires, 9 tests d'intégration sur un vrai PostgreSQL, 10 tests de composants, la compilation, la construction Docker et un test de bout en bout.
+- *Pourquoi tester dans Docker en CI ?* → Pour vérifier exactement ce qui sera déployé, pas seulement le code.
+- *Comment gérez-vous les dépendances vulnérables ?* → Avec Dependabot et la CI : chaque mise à jour est testée avant d'être fusionnée.
+
+### Exercices pour toi
+1. Pousse le projet sur GitHub (voir ci-dessous), puis regarde l'onglet **Actions** : clique sur l'exécution et ouvre les étapes.
+2. Casse volontairement un test (change `"ok"` en `"ko"` dans `tests/unit/candidatures.test.ts`), puis pousse : la CI devient rouge ❌. Annule ensuite le changement.
+3. Crée une branche et ouvre une *pull request* : la CI s'exécute dessus avant la fusion.

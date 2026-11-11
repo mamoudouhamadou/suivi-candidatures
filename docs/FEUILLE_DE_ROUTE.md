@@ -34,7 +34,9 @@ suivi-candidatures/
 │       ├── styles.css        thème clair/sombre, responsive
 │       └── tests/            tests des composants (Vitest + Testing Library)
 ├── docker-compose.yml PostgreSQL (étape 2) ; toute l'application (étape 5)
-└── .github/workflows/ (étape 6) intégration continue
+└── .github/
+    ├── workflows/ci.yml  intégration continue : 3 jobs à chaque push
+    └── dependabot.yml    mises à jour automatiques des dépendances
 ```
 
 ```
@@ -50,7 +52,7 @@ Navigateur (React) ──HTTP/JSON──> API Express ──Prisma──> Postgr
 | 3 | Comptes utilisateurs : inscription, connexion, JWT, mots de passe hachés | Authentification, sécurité | ✅ |
 | 4 | Interface React : liste, formulaire, tableau kanban par statut | React, état, appels API | ✅ |
 | 5 | Docker Compose : toute l'application en une commande | Conteneurs | ✅ |
-| 6 | GitHub Actions : tests à chaque push | CI/CD | ⬜ |
+| 6 | GitHub Actions : tests à chaque push | CI/CD | ✅ |
 | 7 | Statistiques, rappels de relance, déploiement en ligne | Finition, cloud | ⬜ |
 
 Après chaque étape : lire le journal (`docs/JOURNAL.md`), refaire les commandes soi-même, faire un commit.

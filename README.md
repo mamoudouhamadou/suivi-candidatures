@@ -1,5 +1,7 @@
 # Suivi de candidatures
 
+[![CI](https://github.com/mamoudouhamadou/suivi-candidatures/actions/workflows/ci.yml/badge.svg)](https://github.com/mamoudouhamadou/suivi-candidatures/actions/workflows/ci.yml)
+
 Application web full-stack pour suivre ses candidatures de stage ou d'emploi : entreprise, poste, statut (à envoyer → envoyée → entrevue → offre/refus), dates et notes.
 
 > 🚧 En construction. Voir la [feuille de route](docs/FEUILLE_DE_ROUTE.md).
@@ -18,7 +20,7 @@ Application web full-stack pour suivre ses candidatures de stage ou d'emploi : e
 - **Sécurité :** mots de passe hachés (bcrypt), jetons JWT, données isolées par utilisateur
 - **Tests :** Vitest, Supertest, Testing Library (tests unitaires, d'intégration et de composants)
 - **Conteneurs :** Docker (images multi-stage, utilisateur non-root), Docker Compose, nginx (reverse proxy et en-têtes de sécurité)
-- **À venir :** GitHub Actions
+- **CI/CD :** GitHub Actions (types, tests unitaires, tests d'intégration avec PostgreSQL, build Docker et test de bout en bout à chaque push), Dependabot
 
 ## Lancer avec Docker (le plus simple)
 
