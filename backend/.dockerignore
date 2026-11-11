@@ -1,0 +1,9 @@
+# Fichiers à ne PAS envoyer à Docker pendant la construction
+node_modules
+dist
+src/generated
+tests
+.env
+.env.*
+!.env.example
+*.log

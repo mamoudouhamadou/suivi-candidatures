@@ -172,3 +172,78 @@ Inscription, ajout avec le formulaire, rechargement de la page (la session est r
 1. Lance l'application (README, section « Démarrer »), crée ton compte et ajoute tes **vraies** candidatures de stage.
 2. Ajoute un champ de recherche au-dessus du kanban, qui filtre par entreprise (indice : un `useState` et un `.filter()` avant de passer la liste au `TableauKanban`), avec son test.
 3. Ajoute une confirmation plus jolie que `window.confirm` pour la suppression, en réutilisant `<dialog>`.
+
+---
+
+## Étape 5 : toute l'application dans Docker
+
+### Ordre de lecture
+1. `docker-compose.yml` : les 4 services et leur ordre de démarrage.
+2. `backend/Dockerfile` et `backend/.dockerignore`.
+3. `frontend/Dockerfile`, puis `frontend/nginx.conf`.
+4. `.env.example` à la racine.
+
+### Notions clés
+- **Image ou conteneur :** une *image* est un modèle figé (comme une classe) ; un *conteneur* est une image en cours d'exécution (comme un objet). Le `Dockerfile` est la recette de l'image.
+- **Couches et cache :** chaque instruction du Dockerfile crée une couche. On copie `package.json` **avant** le code source : tant que les dépendances ne changent pas, Docker réutilise la couche `npm ci` déjà construite, et les constructions suivantes prennent quelques secondes au lieu de quelques minutes.
+- **Construction en plusieurs étapes (*multi-stage*) :**
+  - l'API compile TypeScript dans l'étape `build`, puis l'image finale ne garde que `dist/` et les dépendances de **production** (pas TypeScript, Vitest ni le CLI Prisma) ;
+  - l'interface est compilée avec Node, puis servie par **nginx** : Node n'est même pas dans l'image finale ;
+  - résultat : des images plus petites, avec moins de code exposé aux failles.
+- **Orchestration (`depends_on` + `condition`) :**
+  `db` (en santé, `pg_isready`) → `migrate` (`prisma migrate deploy`, puis s'arrête) → `api` (en santé, `/api/sante`) → `web`.
+  Sans ces conditions, l'API démarrerait avant que la base soit prête, ou avant que les tables existent.
+- **Service de migration séparé :** il réutilise l'étape `build` (qui contient le CLI Prisma). L'image de l'API reste légère, et les migrations s'exécutent une seule fois, même si on lance plusieurs copies de l'API.
+- **Réseau Docker :** dans Compose, les services se trouvent par leur **nom** : l'API joint `db:5432` et nginx joint `api:3000`. Seuls `web` (8080) et `db` (5433, sur `127.0.0.1` seulement) sont accessibles depuis ta machine. **L'API n'est pas exposée directement.**
+- **nginx comme *reverse proxy* :** une seule adresse pour le navigateur. Les fichiers statiques sont servis directement, et `/api/…` est relayé vers le conteneur `api`. Comme c'est la même origine, il n'y a pas de CORS, comme avec le proxy de Vite en développement.
+- **Configuration par variables d'environnement :** `JWT_SECRET` vient du `.env` à la racine (jamais commité). La syntaxe `${JWT_SECRET:?message}` fait **échouer** `docker compose` si la variable manque, plutôt que de démarrer sans sécurité.
+- **Bonnes pratiques de sécurité :**
+  - l'API tourne avec l'utilisateur `node`, pas `root` ;
+  - `.dockerignore` empêche `.env` et `node_modules` d'entrer dans l'image ;
+  - nginx envoie des en-têtes de sécurité (`Content-Security-Policy`, `X-Frame-Options: DENY` contre le *clickjacking*, `nosniff`) et cache sa version (`server_tokens off`) ;
+  - PostgreSQL n'écoute que sur `127.0.0.1`.
+- **`HEALTHCHECK` :** Docker appelle `/api/sante` toutes les 10 s. `docker compose ps` affiche `healthy` ou `unhealthy`, et `restart: unless-stopped` relance un conteneur qui plante.
+- **Cache HTTP :** les fichiers `/assets/` ont une empreinte dans leur nom (`index-BX89VYhy.js`), donc on peut les garder en cache un an. `index.html` est toujours revérifié, ce qui fait voir immédiatement les nouvelles versions.
+
+### Commandes utiles
+| Commande | Effet |
+|---|---|
+| `docker compose up -d --build` | Construit et démarre tout → http://localhost:8080 |
+| `docker compose ps` | État des services (`healthy`, etc.) |
+| `docker compose logs -f api` | Suivre les journaux de l'API |
+| `docker compose down` | Arrête tout (les données sont gardées) |
+| `docker compose down -v` | Arrête **et efface** la base de données |
+| `docker compose up -d db` | Seulement la base, pour développer avec `npm run dev` |
+| `docker image ls suivi-candidatures*` | Taille des images |
+
+### Problèmes rencontrés et résolus (excellentes histoires C.A.R.)
+1. **`UNABLE_TO_VERIFY_LEAF_SIGNATURE` pendant `npm ci` dans Docker.**
+   - *Diagnostic :* le certificat reçu dans le conteneur était émis par « Avast Web/Mail Shield Root ». L'antivirus inspecte le HTTPS. Windows lui fait confiance (Avast a configuré `NODE_EXTRA_CA_CERTS`), mais pas les conteneurs.
+   - *Solution :* ne **pas** désactiver la vérification TLS. On passe plutôt le certificat comme **secret de build** (`RUN --mount=type=secret`), utilisé seulement pendant `npm ci` et jamais copié dans l'image. C'est configurable avec `CA_SUPPLEMENTAIRE`, et sans effet sur un ordinateur sans antivirus.
+2. **`npm ci` : « package.json and package-lock.json are not in sync » (interface).**
+   - *Cause :* un verrou créé sous Windows auquel il manquait des paquets optionnels pour Linux (Vite 8). C'est un bogue connu de npm.
+   - *Solution :* régénérer le verrou en partant de zéro (supprimer `node_modules` et `package-lock.json`, puis `npm install`).
+3. **Port 8080 déjà utilisé** par un autre projet Docker.
+   - *Solution :* rendre le port configurable (`${PORT_WEB:-8080}`) au lieu d'arrêter l'autre projet.
+4. **Image de l'API trop lourde (158 Mo, dont 341 Mo de `node_modules`).**
+   - *Diagnostic :* npm installait automatiquement le CLI `prisma` (une « dépendance pair » de `@prisma/client`) avec Prisma Studio et React. `--omit=peer` n'avait **aucun effet**, ce que j'ai vérifié par une mesure.
+   - *Solution :* `npm ci --omit=dev --legacy-peer-deps`. Résultat : 89 Mo de `node_modules` et une image de **92 Mo**, avec l'application toujours fonctionnelle (*healthcheck* vert, tests en vrai).
+
+### Vérifié en vrai
+- Les 4 services démarrent dans l'ordre : `db` en santé, puis `migrate` (code 0), puis `api` en santé, puis `web`.
+- La page, les routes de l'application (une URL inconnue renvoie `index.html`), l'API via nginx, l'inscription et la création fonctionnent.
+- Les en-têtes de sécurité sont présents, `Server: nginx` n'affiche pas de version, et il n'y a pas de `X-Powered-By`.
+- Les fichiers `/assets/` sont gardés en cache un an.
+- Dans le navigateur, aucune erreur de console, donc la politique CSP ne bloque rien.
+
+### Questions possibles en entrevue
+- *Pourquoi Docker ?* → Le même environnement partout (mon PC, celui d'un collègue, le serveur) : « ça marche sur ma machine » n'est plus un problème.
+- *Qu'est-ce qu'un build multi-stage ?* → Compiler dans une image complète, puis ne copier que le résultat dans une image minimale.
+- *Comment gérez-vous l'ordre de démarrage et les migrations ?* → Avec des *healthchecks*, `depends_on` avec conditions, et un service de migration qui s'exécute une fois.
+- *Pourquoi ne pas exécuter en root ?* → Si l'application est compromise, l'attaquant a moins de droits dans le conteneur.
+- *Comment passez-vous les secrets ?* → Par des variables d'environnement venant d'un `.env` non versionné. En production, on utiliserait un gestionnaire de secrets (Azure Key Vault, AWS Secrets Manager).
+
+### Exercices pour toi
+1. Lance `docker compose up -d --build` et ouvre http://localhost:8081 (le port de ton `.env`).
+2. Lance `docker image ls` et compare la taille de l'image de l'API à celle de l'étape `build` (`docker build --target build -t essai ./backend`).
+3. Lance `docker compose stop api` : que montre l'interface ? Relance-la avec `docker compose start api`.

@@ -1,14 +1,20 @@
-# Base de données PostgreSQL pour le développement.
-# Démarrer :  docker compose up -d     Arrêter :  docker compose down
+# Toute l'application en une commande :   docker compose up -d --build
+#   → http://localhost:8080
+# Base de données seule (développement avec npm run dev) :   docker compose up -d db
+# Arrêter :   docker compose down        (ajouter -v pour EFFACER aussi les données)
+#
+# Ordre de démarrage :  db (en santé) → migrate (terminé avec succès) → api (en santé) → web
+
 services:
+  # PostgreSQL
   db:
     image: postgres:17
     environment:
       POSTGRES_USER: suivi
-      POSTGRES_PASSWORD: suivi_dev   # mot de passe de développement local seulement
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-suivi_dev}   # valeur de .env, sinon mot de passe de développement
       POSTGRES_DB: suivi_candidatures
     ports:
-      - "5433:5432"   # 5433 sur ta machine, pour ne pas entrer en conflit avec un PostgreSQL déjà installé
+      - "127.0.0.1:5433:5432"   # accessible depuis ta machine seulement (pour npm run dev et Prisma Studio)
     volumes:
       - donnees_pg:/var/lib/postgresql/data   # les données survivent à l'arrêt du conteneur
       - ./docker/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql:ro
@@ -17,5 +23,52 @@ services:
       interval: 5s
       retries: 10
 
+  # Applique les migrations Prisma, puis s'arrête.
+  # Réutilise l'étape « build » du Dockerfile de l'API (elle contient le CLI Prisma).
+  migrate:
+    build:
+      context: ./backend
+      target: build
+      secrets: [ca_supplementaire]
+    command: ["npx", "prisma", "migrate", "deploy"]
+    environment:
+      DATABASE_URL: postgresql://suivi:${POSTGRES_PASSWORD:-suivi_dev}@db:5432/suivi_candidatures?schema=public
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # API Express (non exposée directement : on y accède par nginx, via /api)
+  api:
+    build:
+      context: ./backend
+      target: production
+      secrets: [ca_supplementaire]
+    environment:
+      DATABASE_URL: postgresql://suivi:${POSTGRES_PASSWORD:-suivi_dev}@db:5432/suivi_candidatures?schema=public
+      JWT_SECRET: ${JWT_SECRET:?Définis JWT_SECRET dans le fichier .env à la racine (voir .env.example)}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  # Interface React servie par nginx, qui relaie aussi /api vers le service « api »
+  web:
+    build:
+      context: ./frontend
+      secrets: [ca_supplementaire]
+    ports:
+      - "${PORT_WEB:-8080}:80"   # port sur ta machine : 8080 par défaut, modifiable dans .env
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   donnees_pg:
+
+# Certificat racine supplémentaire utilisé SEULEMENT pendant la construction des images (npm ci).
+# Utile si un antivirus (ex. Avast) ou un proxy d'entreprise inspecte le HTTPS.
+# Par défaut : fichier vide (aucun effet). Sinon, définir CA_SUPPLEMENTAIRE dans .env.
+secrets:
+  ca_supplementaire:
+    file: ${CA_SUPPLEMENTAIRE:-./docker/aucun-certificat.pem}

@@ -17,14 +17,37 @@ Application web full-stack pour suivre ses candidatures de stage ou d'emploi : e
 - **Base de données :** PostgreSQL 17 (Docker), Prisma ORM
 - **Sécurité :** mots de passe hachés (bcrypt), jetons JWT, données isolées par utilisateur
 - **Tests :** Vitest, Supertest, Testing Library (tests unitaires, d'intégration et de composants)
-- **À venir :** Docker Compose pour toute l'application, GitHub Actions
+- **Conteneurs :** Docker (images multi-stage, utilisateur non-root), Docker Compose, nginx (reverse proxy et en-têtes de sécurité)
+- **À venir :** GitHub Actions
 
-## Démarrer
+## Lancer avec Docker (le plus simple)
+
+Prérequis : Docker Desktop.
+
+```bash
+cp .env.example .env          # puis remplace JWT_SECRET (voir la commande dans le fichier)
+docker compose up -d --build
+```
+
+Ouvre **http://localhost:8080**. Docker démarre PostgreSQL, applique les migrations, puis lance l'API et l'interface (nginx).
+
+- Port 8080 déjà pris ? Ajoute `PORT_WEB=8081` dans `.env`.
+- `npm ci` échoue avec `UNABLE_TO_VERIFY_LEAF_SIGNATURE` ? Un antivirus ou un proxy inspecte le HTTPS : indique son certificat racine dans `CA_SUPPLEMENTAIRE` (voir `.env.example`). Il sert seulement pendant la construction et n'est jamais copié dans les images.
+
+Tailles des images : API ≈ 92 Mo, interface ≈ 26 Mo.
+
+```
+navigateur ──> web (nginx, port 8080) ──/api──> api (Express) ──> db (PostgreSQL)
+                                                     ▲
+                                  migrate (prisma migrate deploy, une fois au démarrage)
+```
+
+## Développer (rechargement automatique)
 
 Prérequis : Node.js 22 ou plus récent, Docker Desktop.
 
 ```bash
-docker compose up -d          # démarre PostgreSQL (port 5433)
+docker compose up -d db       # démarre seulement PostgreSQL (port 5433)
 cd backend
 cp .env.example .env          # puis remplace JWT_SECRET (voir la commande dans le fichier)
 npm install
