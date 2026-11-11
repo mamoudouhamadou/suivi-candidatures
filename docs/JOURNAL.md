@@ -70,3 +70,54 @@ Pour chaque étape : ce qui a été fait, les notions à comprendre, et les ques
 1. `npm run db:studio` ouvre Prisma Studio : regarde la table après avoir créé des candidatures avec l'API.
 2. Ajoute un champ `ville String?` au schéma, lance `npm run db:migrate`, puis lis le SQL de la nouvelle migration.
 3. Le filtre `?statut=` de l'étape 1 : ajoute une méthode `lister(statut?)` au dépôt et implémente-la dans **les deux** versions (mémoire et Prisma).
+
+---
+
+## Étape 3 : comptes utilisateurs et JWT
+
+### Ordre de lecture
+1. `prisma/schema.prisma`, puis la migration `…_utilisateurs` : la table `Utilisateur` et la **clé étrangère** `utilisateurId`.
+2. `src/utilisateur.ts` : la validation de l'inscription et de la connexion.
+3. `src/auth/jetons.ts`, puis `src/auth/middleware.ts`.
+4. `src/routes/auth.ts` : l'inscription, la connexion et `/moi`.
+5. `src/app.ts` : les routes publiques et les routes protégées.
+6. `src/depots/` : chaque méthode reçoit maintenant `utilisateurId`.
+7. `tests/unit/auth.test.ts`, puis le bloc « Isolation » de `candidatures.test.ts`.
+
+### Notions clés
+- **Authentification et autorisation :** l'*authentification*, c'est « qui es-tu ? » (connexion, jeton → `401` si absent ou invalide). L'*autorisation*, c'est « as-tu le droit ? » (une candidature d'un autre utilisateur).
+- **Hachage du mot de passe (bcrypt) :** on ne stocke **jamais** le mot de passe, seulement un hachage. C'est une fonction à sens unique : on peut vérifier un mot de passe, mais pas le retrouver.
+  - **Sel :** une valeur aléatoire ajoutée avant le hachage. Deux personnes avec le même mot de passe ont des hachages différents, ce qui rend les tables précalculées (*rainbow tables*) inutiles.
+  - **Coût (12) :** bcrypt est lent **exprès**, environ 0,25 s par essai. Un utilisateur ne le remarque pas, mais un attaquant qui teste des milliards de mots de passe est bloqué. Dans les tests, le coût est de 4 pour aller vite.
+  - Dans la base, on voit `$2b$12$…` : `2b` est la version de bcrypt, `12` le coût, puis viennent le sel et le hachage.
+- **JWT :** `en-tête.contenu.signature`. Le serveur signe `{ sub: id, exp: expiration }` avec `JWT_SECRET`. Le contenu est **lisible** (essaie de coller un jeton sur jwt.io), mais **infalsifiable** sans le secret. Le serveur n'a rien à stocker : on dit que c'est *sans état* (*stateless*).
+- **Middleware `exigerAuthentification` :** il lit `Authorization: Bearer <jeton>`, vérifie la signature et l'expiration, puis range l'id dans `res.locals`. Sans jeton valide → `401`, et la route n'est jamais exécutée.
+- **Isolation des données :** chaque requête SQL filtre par `utilisateurId`. Si on demande la candidature d'un autre, on obtient `404` et non `403`, pour ne même pas révéler qu'elle existe.
+- **Clé étrangère et `ON DELETE CASCADE` :** PostgreSQL garantit que chaque candidature pointe vers un utilisateur qui existe. Supprimer l'utilisateur supprime ses candidatures.
+
+### Détails de sécurité (excellents en entrevue)
+| Détail | Pourquoi |
+|---|---|
+| Même message pour « courriel inconnu » et « mauvais mot de passe » | Ne pas permettre de deviner quels courriels ont un compte (énumération) |
+| Comparaison avec un hachage factice quand le courriel est inconnu | La réponse prend le même temps dans les deux cas (attaque temporelle) |
+| `algorithms: ["HS256"]` imposé à la vérification | Bloque les jetons `alg: none` non signés (une faille connue des JWT) |
+| Le serveur refuse de démarrer sans `JWT_SECRET` de 32 caractères ou plus | Un secret faible ou absent permettrait de fabriquer des jetons |
+| `motDePasseHache` jamais renvoyé (`versPublic`) | Ne jamais exposer de données sensibles |
+| Courriel en minuscules et sans espaces | « Ana@X.ca » et « ana@x.ca » sont le même compte |
+| `409` si le courriel existe déjà | Code HTTP précis pour un conflit |
+| Limite de 72 caractères pour le mot de passe | bcrypt ignore ce qui dépasse 72 octets |
+| `express.json({ limit: "100kb" })` et `x-powered-by` désactivé | Refuser les corps énormes et ne pas annoncer la technologie utilisée |
+
+**Le test a trouvé un vrai bogue :** « Ana@Exemple.ca » avec une espace à la fin était refusé, parce que le format était vérifié avant le nettoyage. La correction : `trim().toLowerCase().pipe(z.email())`. C'est un bon exemple à raconter avec la méthode C.A.R.
+
+### Questions possibles en entrevue
+- *Comment stockez-vous les mots de passe ?* → Hachés avec bcrypt (sel et coût de 12), jamais en clair ni chiffrés de façon réversible.
+- *Quelle différence entre hachage et chiffrement ?* → Le hachage est à sens unique ; le chiffrement est réversible avec une clé.
+- *Qu'y a-t-il dans votre JWT ? Peut-on le lire ?* → L'id de l'utilisateur et l'expiration. Oui, on peut le lire, mais pas le modifier sans le secret.
+- *Où le client garde-t-il le jeton ?* → On en parlera à l'étape 4 : en mémoire ou dans `localStorage` (risque XSS), ou dans un cookie `HttpOnly` (risque CSRF). Chaque option a ses compromis.
+- *Limite de votre approche ?* → On ne peut pas révoquer un JWT avant son expiration. Solutions : une durée courte avec un jeton de rafraîchissement, ou une liste de révocation. Il manque aussi une limite de tentatives de connexion (*rate limiting*).
+
+### Exercices pour toi
+1. Avec l'extension REST Client ou Postman : inscris-toi, copie le jeton, puis appelle `GET /api/candidatures` avec et sans l'en-tête.
+2. Colle ton jeton sur **jwt.io** et lis son contenu. Change un caractère du jeton et rappelle l'API : tu obtiens `401`.
+3. Ajoute une limite de tentatives sur `/api/auth/connexion` avec le paquet `express-rate-limit` (par exemple 5 essais par 15 minutes), avec son test.

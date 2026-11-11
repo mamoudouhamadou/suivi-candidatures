@@ -7,8 +7,9 @@ Application web full-stack pour suivre ses candidatures de stage ou d'emploi : e
 ## Stack
 - **Backend :** Node.js, TypeScript, Express, Zod
 - **Base de données :** PostgreSQL 17 (Docker), Prisma ORM
+- **Sécurité :** comptes utilisateurs, mots de passe hachés (bcrypt), jetons JWT, données isolées par utilisateur
 - **Tests :** Vitest, Supertest (tests unitaires et tests d'intégration)
-- **À venir :** authentification JWT, React, GitHub Actions
+- **À venir :** React, GitHub Actions
 
 ## Démarrer
 
@@ -17,7 +18,7 @@ Prérequis : Node.js 22 ou plus récent, Docker Desktop.
 ```bash
 docker compose up -d          # démarre PostgreSQL (port 5433)
 cd backend
-cp .env.example .env
+cp .env.example .env          # puis remplace JWT_SECRET (voir la commande dans le fichier)
 npm install
 npx prisma migrate deploy     # crée les tables
 npm run dev                   # API sur http://localhost:3000
@@ -37,9 +38,21 @@ Si Docker Desktop affiche « The file cannot be accessed by the system » à pro
 
 ## API
 
+### Authentification
+
 | Méthode | URL | Description | Réponses |
 |---|---|---|---|
-| GET | `/api/sante` | Vérifie que l'API répond | 200 |
+| POST | `/api/auth/inscription` | `{ courriel, motDePasse (8 car. min.), nom? }` → `{ utilisateur, jeton }` | 201, 400, 409 |
+| POST | `/api/auth/connexion` | `{ courriel, motDePasse }` → `{ utilisateur, jeton }` | 200, 400, 401 |
+| GET | `/api/auth/moi` | L'utilisateur connecté 🔒 | 200, 401 |
+
+🔒 Envoyer l'en-tête `Authorization: Bearer <jeton>`. Le jeton est valide pendant 24 h.
+
+### Candidatures 🔒 (chacun ne voit que les siennes)
+
+| Méthode | URL | Description | Réponses |
+|---|---|---|---|
+| GET | `/api/sante` | Vérifie que l'API répond (publique) | 200 |
 | GET | `/api/candidatures` | Liste (la plus récente en premier) | 200 |
 | GET | `/api/candidatures/:id` | Une candidature | 200, 404 |
 | POST | `/api/candidatures` | Crée (`entreprise` et `poste` obligatoires) | 201, 400 |

@@ -18,16 +18,29 @@ enum Statut {
   refusee
 }
 
-model Candidature {
-  id         Int       @id @default(autoincrement())
-  entreprise String
-  poste      String
-  statut     Statut    @default(a_envoyer)
-  dateEnvoi  DateTime? @db.Date
-  lien       String?
-  notes      String?
-  creeLe     DateTime  @default(now())
-  modifieLe  DateTime  @updatedAt
+model Utilisateur {
+  id              Int           @id @default(autoincrement())
+  courriel        String        @unique
+  motDePasseHache String // jamais le mot de passe en clair !
+  nom             String?
+  creeLe          DateTime      @default(now())
+  candidatures    Candidature[] // relation 1-N : un utilisateur a plusieurs candidatures
+}
 
-  @@index([statut])
+model Candidature {
+  id            Int         @id @default(autoincrement())
+  entreprise    String
+  poste         String
+  statut        Statut      @default(a_envoyer)
+  dateEnvoi     DateTime?   @db.Date
+  lien          String?
+  notes         String?
+  creeLe        DateTime    @default(now())
+  modifieLe     DateTime    @updatedAt
+  // Clé étrangère : chaque candidature appartient à un utilisateur.
+  // onDelete: Cascade → supprimer l'utilisateur supprime ses candidatures.
+  utilisateurId Int
+  utilisateur   Utilisateur @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+
+  @@index([utilisateurId, statut])
 }
