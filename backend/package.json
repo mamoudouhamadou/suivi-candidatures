@@ -9,7 +9,7 @@
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run tests/unit",
-    "test:integration": "dotenv -e .env.test -- prisma migrate deploy && dotenv -e .env.test -- vitest run tests/integration",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate"
@@ -28,7 +28,6 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^26.6.6",
     "@types/supertest": "^7.2.1",
-    "dotenv-cli": "^11.1.0",
     "prisma": "^7.10.1",
     "supertest": "^7.3.2",
     "tsx": "^4.23.15",

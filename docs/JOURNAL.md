@@ -271,6 +271,13 @@ Inscription, ajout avec le formulaire, rechargement de la page (la session est r
 - **Dependabot :** il ouvre des *pull requests* de mise à jour (npm, images Docker, actions). La CI les teste automatiquement, et on fusionne seulement si tout est vert. Les mises à jour mineures sont regroupées.
 - **Badge :** l'image en haut du README montre l'état de la CI de la branche `main`. Un recruteur voit tout de suite que le projet est testé.
 
+### Premier passage sur GitHub : la CI a trouvé un vrai bogue
+- **Contexte :** au premier push, le job API échouait aux *tests d'intégration*, alors que tout passait sur mon PC.
+- **Diagnostic :** j'ai reproduit la CI dans Docker (Linux, installation neuve, PostgreSQL vide). Le message `Usage: dotenv run …` montrait que **deux paquets fournissaient la même commande `dotenv`** : `dotenv-cli` (celui que j'utilisais) et `dotenv` (qui a ajouté sa propre commande dans ses versions récentes). Sur mon PC, `dotenv-cli` prenait le dessus par hasard (ordre d'installation). Sur une installation neuve, c'était l'autre, qui ne comprend pas `-e`.
+- **Action :** supprimer la dépendance ambiguë. Une configuration Vitest dédiée (`vitest.integration.config.ts`) lit `.env.test` avec Node lui-même (`util.parseEnv`), et `tests/integration/preparer-base.ts` applique les migrations avant les tests.
+- **Résultat :** le job complet passe dans un Linux neuf : types, 20 tests unitaires, migrations sur une base vide, 9 tests d'intégration et compilation.
+- **Leçon :** « ça marche sur ma machine » ne prouve rien. C'est exactement pour ça qu'on a une CI qui part de zéro.
+
 ### Vérifié localement
 - **actionlint** (le vérificateur officieux de référence pour GitHub Actions, avec shellcheck pour les scripts) : 0 erreur.
 - Le script de bout en bout du job `docker` a été exécuté contre la version Docker locale : `✅ Application complète fonctionnelle`.
