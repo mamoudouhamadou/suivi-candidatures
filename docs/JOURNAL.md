@@ -329,7 +329,7 @@ Inscription, ajout avec le formulaire, rechargement de la page (la session est r
 - 27 tests unitaires (7 nouveaux : limite 429, en-têtes, version, service de l'interface, cache, route `/api` inconnue, refus de démarrer sans `index.html`) et 9 tests d'intégration.
 - L'image de déploiement (92 Mo) a été lancée comme sur Render (port 10000, PostgreSQL) : santé et version, interface, routes de l'application, cache, création, limite par IP (le 21e essai donne `429`, une autre IP passe), utilisateur `node`, *healthcheck* `healthy`, et aucune erreur de console dans le navigateur.
 - actionlint : 0 erreur.
-- ⚠️ **Pas encore vérifié :** le vrai déploiement. Il faut d'abord créer les comptes Neon et Render (voir `docs/DEPLOIEMENT.md`).
+- ✅ **En production :** le premier déploiement continu a réussi (tests, puis migrations sur Neon, puis Render, puis vérification de la version et test de fumée). Le site est en ligne sur https://suivi-candidatures-3vga.onrender.com.
 
 ### Questions possibles en entrevue
 - *Comment déployez-vous ?* → Par GitHub Actions : tests, puis migrations, puis déploiement par crochet, puis vérification de la version et test de fumée. Rien n'arrive en production sans tests verts.
