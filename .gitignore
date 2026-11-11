@@ -4,3 +4,7 @@ dist/
 *.log
 coverage/
 backend/src/generated/
+
+# Configuration personnelle de l'éditeur (IntelliJ / WebStorm, VS Code)
+.idea/
+.vscode/
