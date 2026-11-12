@@ -1,23 +1,40 @@
 # Dependabot ouvre automatiquement des pull requests quand une dépendance a une mise à jour
 # (et surtout une faille de sécurité corrigée). La CI les teste avant qu'on les fusionne.
-# Les mises à jour mineures sont regroupées pour éviter une avalanche de PR.
+#
+# Règles (même politique que la mini-banque) :
+#  1. Les mises à jour mineures et correctives sont regroupées : une PR au lieu d'une avalanche.
+#  2. Les versions MAJEURES sont ignorées : elles demandent souvent des changements de code
+#     et se font à la main, en lisant les notes de version.
+#  3. Les images Docker restent sur une version LTS de Node (aujourd'hui 26) : pas de saut
+#     automatique vers une version impaire non LTS (25, 27…). Passer à la LTS suivante est une décision humaine.
+# Les mises à jour de SÉCURITÉ, elles, sont toujours proposées (elles ne suivent pas ces filtres).
 version: 2
 updates:
   - package-ecosystem: npm
     directory: /backend
     schedule: { interval: weekly }
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
       mineures: { update-types: [minor, patch] }
 
   - package-ecosystem: npm
     directory: /frontend
     schedule: { interval: weekly }
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
       mineures: { update-types: [minor, patch] }
 
   - package-ecosystem: docker
-    directories: [/backend, /frontend]
+    # « / » : l'image de déploiement (Dockerfile à la racine) était oubliée avant
+    directories: [/, /backend, /frontend]
     schedule: { interval: monthly }
+    ignore:
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /

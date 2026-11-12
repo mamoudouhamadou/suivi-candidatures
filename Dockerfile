@@ -3,7 +3,7 @@
 # Construire :  docker build -t suivi-candidatures .
 
 # ---------- Étape 1 : compiler l'interface React ----------
-FROM node:24-alpine AS interface
+FROM node:26-alpine AS interface
 WORKDIR /interface
 COPY frontend/package.json frontend/package-lock.json ./
 RUN --mount=type=secret,id=ca_supplementaire,required=false \
@@ -13,7 +13,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # ---------- Étape 2 : compiler l'API ----------
-FROM node:24-alpine AS api
+FROM node:26-alpine AS api
 WORKDIR /app
 COPY backend/package.json backend/package-lock.json backend/prisma.config.ts ./
 COPY backend/prisma ./prisma
@@ -25,7 +25,7 @@ COPY backend/src ./src
 RUN npx prisma generate && npm run build
 
 # ---------- Étape 3 : dépendances de production (voir backend/Dockerfile pour les options) ----------
-FROM node:24-alpine AS deps-prod
+FROM node:26-alpine AS deps-prod
 WORKDIR /app
 COPY backend/package.json backend/package-lock.json ./
 RUN --mount=type=secret,id=ca_supplementaire,required=false \
@@ -33,7 +33,7 @@ RUN --mount=type=secret,id=ca_supplementaire,required=false \
     npm ci --omit=dev --legacy-peer-deps --ignore-scripts
 
 # ---------- Étape 4 : image finale ----------
-FROM node:24-alpine
+FROM node:26-alpine
 WORKDIR /app
 ENV NODE_ENV=production \
     PORT=3000 \
