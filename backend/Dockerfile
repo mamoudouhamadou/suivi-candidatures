@@ -3,7 +3,7 @@
 # l'image finale ne contient que le nécessaire pour exécuter → plus petite et plus sûre.
 
 # ---------- Étape 1 : dépendances complètes + compilation ----------
-FROM node:24-alpine AS build
+FROM node:25-alpine AS build
 WORKDIR /app
 
 # On copie d'abord package*.json seuls : tant qu'ils ne changent pas,
@@ -22,7 +22,7 @@ COPY src ./src
 RUN npx prisma generate && npm run build
 
 # ---------- Étape 2 : dépendances de production seulement ----------
-FROM node:24-alpine AS deps-prod
+FROM node:25-alpine AS deps-prod
 WORKDIR /app
 COPY package.json package-lock.json ./
 # --omit=dev           : pas de TypeScript, Vitest…
@@ -36,7 +36,7 @@ RUN --mount=type=secret,id=ca_supplementaire,required=false \
     npm ci --omit=dev --legacy-peer-deps --ignore-scripts
 
 # ---------- Étape 3 : image finale ----------
-FROM node:24-alpine AS production
+FROM node:25-alpine AS production
 WORKDIR /app
 ENV NODE_ENV=production PORT=3000
 
