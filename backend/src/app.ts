@@ -64,7 +64,7 @@ export function creerApp({
     limit: limiteAuth,
     standardHeaders: "draft-8", // en-têtes RateLimit-* pour informer le client
     legacyHeaders: false,
-    message: { erreur: "Trop de tentatives. Réessaie dans 15 minutes." },
+    message: { erreur: "Trop de tentatives. Veuillez réessayer dans 15 minutes." },
   });
 
   // Routes publiques : inscription et connexion

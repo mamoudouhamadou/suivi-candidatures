@@ -2,90 +2,83 @@
 
 [![CI](https://github.com/mamoudouhamadou/suivi-candidatures/actions/workflows/ci.yml/badge.svg)](https://github.com/mamoudouhamadou/suivi-candidatures/actions/workflows/ci.yml)
 
-Application web full-stack pour suivre ses candidatures de stage ou d'emploi : entreprise, poste, statut (à envoyer → envoyée → entrevue → offre/refus), dates et notes.
+Application web full-stack pour suivre des candidatures de stage ou d'emploi : entreprise, poste, statut (à envoyer → envoyée → entrevue → offre/refus), dates et notes.
 
 **🌐 Démo en ligne : https://suivi-candidatures-3vga.onrender.com**
-<sub>Hébergement gratuit : la première visite peut prendre environ 1 minute (le serveur se réveille).</sub>
+<sub>Hébergement gratuit : la première visite peut prendre environ une minute (réveil du serveur).</sub>
 
-> 🚧 En construction. Voir la [feuille de route](docs/FEUILLE_DE_ROUTE.md).
+Documentation : [architecture](docs/ARCHITECTURE.md) · [déploiement](docs/DEPLOIEMENT.md)
 
 ## Fonctionnalités
-- Comptes utilisateurs : inscription et connexion ; chacun ne voit que ses candidatures
-- Tableau **kanban** par statut : glisser-déposer, ou liste déroulante pour le clavier et le tactile
+- Comptes utilisateurs : inscription et connexion ; chaque utilisateur ne voit que ses candidatures
+- Tableau **kanban** par statut : glisser-déposer, ou liste déroulante (clavier et tactile)
 - Création et modification dans une fenêtre modale, avec les erreurs affichées sous chaque champ
-- Statistiques : nombre de candidatures, envoyées, taux d'entrevue
-- Thème clair/sombre automatique et affichage adapté au téléphone
+- Statistiques : nombre de candidatures, candidatures envoyées, taux d'entrevue
+- Thème clair/sombre automatique, affichage adapté aux téléphones
 
 ## Stack
 - **Frontend :** React 19, TypeScript, Vite
 - **Backend :** Node.js, TypeScript, Express, Zod
-- **Base de données :** PostgreSQL 17 (Docker), Prisma ORM
-- **Sécurité :** mots de passe hachés (bcrypt), jetons JWT, données isolées par utilisateur
-- **Tests :** Vitest, Supertest, Testing Library (tests unitaires, d'intégration et de composants)
-- **Conteneurs :** Docker (images multi-stage, utilisateur non-root), Docker Compose, nginx (reverse proxy et en-têtes de sécurité)
-- **CI/CD :** GitHub Actions (types, tests unitaires, tests d'intégration avec PostgreSQL, build Docker et test de bout en bout à chaque push, puis déploiement continu), Dependabot
-- **Hébergement :** Render (Docker) et Neon (PostgreSQL serverless) ; voir [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md)
-- **Sécurité en production :** en-têtes helmet (CSP, anti-clickjacking), limite de tentatives de connexion (429)
+- **Base de données :** PostgreSQL 17, Prisma ORM (migrations versionnées)
+- **Sécurité :** mots de passe hachés (bcrypt), jetons JWT, données isolées par utilisateur, en-têtes helmet (CSP, HSTS), limite de tentatives de connexion
+- **Tests :** Vitest, Supertest, Testing Library (unitaires, intégration, composants)
+- **Conteneurs :** Docker (images multi-stage, utilisateur non-root), Docker Compose, nginx
+- **CI/CD :** GitHub Actions (tests, images Docker, test de bout en bout, déploiement continu), Dependabot
+- **Hébergement :** Render (Docker) et Neon (PostgreSQL)
 
-## Lancer avec Docker (le plus simple)
+## Lancer avec Docker
 
-Prérequis : Docker Desktop.
+Prérequis : Docker.
 
 ```bash
-cp .env.example .env          # puis remplace JWT_SECRET (voir la commande dans le fichier)
-docker compose up -d --build
+cp .env.example .env          # définir JWT_SECRET (commande de génération dans le fichier)
+docker compose up -d --build  # http://localhost:8080
 ```
 
-Ouvre **http://localhost:8080**. Docker démarre PostgreSQL, applique les migrations, puis lance l'API et l'interface (nginx).
-
-- Port 8080 déjà pris ? Ajoute `PORT_WEB=8081` dans `.env`.
-- `npm ci` échoue avec `UNABLE_TO_VERIFY_LEAF_SIGNATURE` ? Un antivirus ou un proxy inspecte le HTTPS : indique son certificat racine dans `CA_SUPPLEMENTAIRE` (voir `.env.example`). Il sert seulement pendant la construction et n'est jamais copié dans les images.
-
-Tailles des images : API ≈ 92 Mo, interface ≈ 26 Mo.
+Docker démarre PostgreSQL, applique les migrations, puis lance l'API et l'interface (nginx).
 
 ```
 navigateur ──> web (nginx, port 8080) ──/api──> api (Express) ──> db (PostgreSQL)
                                                      ▲
-                                  migrate (prisma migrate deploy, une fois au démarrage)
+                                  migrate (prisma migrate deploy, au démarrage)
 ```
 
-## Développer (rechargement automatique)
+Options (`.env`) :
+- `PORT_WEB` : port local de l'application (8080 par défaut) ;
+- `CA_SUPPLEMENTAIRE` : certificat racine d'un proxy qui inspecte le HTTPS, utilisé uniquement pendant la construction des images.
 
-Prérequis : Node.js 22 ou plus récent, Docker Desktop.
+## Développement
+
+Prérequis : Node.js 22 ou plus récent, Docker.
 
 ```bash
-docker compose up -d db       # démarre seulement PostgreSQL (port 5433)
+docker compose up -d db       # PostgreSQL seul (port 5433)
 cd backend
-cp .env.example .env          # puis remplace JWT_SECRET (voir la commande dans le fichier)
+cp .env.example .env          # définir JWT_SECRET
 npm install
-npx prisma migrate deploy     # crée les tables
+npx prisma migrate deploy     # création des tables
 npm run dev                   # API sur http://localhost:3000
 ```
 
-Dans un deuxième terminal :
+Dans un second terminal :
 
 ```bash
 cd frontend
 npm install
-npm run dev                   # interface sur http://localhost:5173
+npm run dev                   # interface sur http://localhost:5173 (/api relayé vers le port 3000)
 ```
 
-Ouvre http://localhost:5173 et crée un compte. En développement, Vite redirige `/api` vers l'API (port 3000).
-
-Sans Docker, l'API fonctionne aussi : retire `DATABASE_URL` du `.env`, et les données seront gardées en mémoire.
+Sans `DATABASE_URL`, l'API fonctionne avec un stockage en mémoire.
 
 ## Tests
 
 ```bash
 cd backend
-npm test                      # tests unitaires de l'API (aucune base requise)
-npm run test:integration      # tests contre PostgreSQL (Docker doit tourner)
+npm test                      # tests unitaires (aucune base requise)
+npm run test:integration      # tests d'intégration (PostgreSQL requis)
 cd ../frontend
-npm test                      # tests des composants React
+npm test                      # tests des composants
 ```
-
-### Dépannage (Windows)
-Si Docker Desktop affiche « The file cannot be accessed by the system » à propos d'un fichier `.sock` : quitte Docker Desktop et renomme le dossier qui contient ce fichier, par exemple `%LOCALAPPDATA%\Docker\run`. Docker en recréera un neuf au démarrage suivant.
 
 ## API
 
@@ -95,20 +88,20 @@ Si Docker Desktop affiche « The file cannot be accessed by the system » à pro
 |---|---|---|---|
 | POST | `/api/auth/inscription` | `{ courriel, motDePasse (8 car. min.), nom? }` → `{ utilisateur, jeton }` | 201, 400, 409 |
 | POST | `/api/auth/connexion` | `{ courriel, motDePasse }` → `{ utilisateur, jeton }` | 200, 400, 401 |
-| GET | `/api/auth/moi` | L'utilisateur connecté 🔒 | 200, 401 |
+| GET | `/api/auth/moi` | Utilisateur connecté 🔒 | 200, 401 |
 
-🔒 Envoyer l'en-tête `Authorization: Bearer <jeton>`. Le jeton est valide pendant 24 h.
+🔒 En-tête requis : `Authorization: Bearer <jeton>` (validité : 24 h).
 
-### Candidatures 🔒 (chacun ne voit que les siennes)
+### Candidatures 🔒
 
 | Méthode | URL | Description | Réponses |
 |---|---|---|---|
-| GET | `/api/sante` | Vérifie que l'API répond (publique) | 200 |
+| GET | `/api/sante` | État de l'API et version déployée (publique) | 200 |
 | GET | `/api/candidatures` | Liste (la plus récente en premier) | 200 |
 | GET | `/api/candidatures/:id` | Une candidature | 200, 404 |
-| POST | `/api/candidatures` | Crée (`entreprise` et `poste` obligatoires) | 201, 400 |
-| PATCH | `/api/candidatures/:id` | Modifie les champs envoyés (`null` efface) | 200, 400, 404 |
-| DELETE | `/api/candidatures/:id` | Supprime | 204, 404 |
+| POST | `/api/candidatures` | Création (`entreprise` et `poste` obligatoires) | 201, 400 |
+| PATCH | `/api/candidatures/:id` | Modification des champs envoyés (`null` efface) | 200, 400, 404 |
+| DELETE | `/api/candidatures/:id` | Suppression | 204, 404 |
 
 Champs : `entreprise`, `poste`, `statut` (`a_envoyer`, `envoyee`, `entrevue`, `offre`, `refusee`), `dateEnvoi` (AAAA-MM-JJ), `lien` (URL), `notes`.
 

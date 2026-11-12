@@ -37,7 +37,7 @@ export function PageConnexion() {
     <main className="page-connexion">
       <div className="carte-connexion">
         <h1>Suivi de candidatures</h1>
-        <p className="sous-titre">{estInscription ? "Crée ton compte" : "Connecte-toi pour voir tes candidatures"}</p>
+        <p className="sous-titre">{estInscription ? "Créez votre compte" : "Connectez-vous pour voir vos candidatures"}</p>
 
         <form onSubmit={soumettre} noValidate>
           {estInscription && (

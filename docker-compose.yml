@@ -14,7 +14,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-suivi_dev}   # valeur de .env, sinon mot de passe de développement
       POSTGRES_DB: suivi_candidatures
     ports:
-      - "127.0.0.1:5433:5432"   # accessible depuis ta machine seulement (pour npm run dev et Prisma Studio)
+      - "127.0.0.1:5433:5432"   # accessible depuis la machine locale seulement (npm run dev, Prisma Studio)
     volumes:
       - donnees_pg:/var/lib/postgresql/data   # les données survivent à l'arrêt du conteneur
       - ./docker/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql:ro
@@ -57,7 +57,7 @@ services:
       context: ./frontend
       secrets: [ca_supplementaire]
     ports:
-      - "${PORT_WEB:-8080}:80"   # port sur ta machine : 8080 par défaut, modifiable dans .env
+      - "${PORT_WEB:-8080}:80"   # port local : 8080 par défaut, modifiable dans .env
     depends_on:
       api:
         condition: service_healthy

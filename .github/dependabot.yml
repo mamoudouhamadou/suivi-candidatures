@@ -1,7 +1,7 @@
 # Dependabot ouvre automatiquement des pull requests quand une dépendance a une mise à jour
 # (et surtout une faille de sécurité corrigée). La CI les teste avant qu'on les fusionne.
 #
-# Règles (même politique que la mini-banque) :
+# Règles :
 #  1. Les mises à jour mineures et correctives sont regroupées : une PR au lieu d'une avalanche.
 #  2. Les versions MAJEURES sont ignorées : elles demandent souvent des changements de code
 #     et se font à la main, en lisant les notes de version.

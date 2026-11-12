@@ -10,7 +10,7 @@ export function exigerAuthentification(secret: string) {
     const utilisateurId = type === "Bearer" && jeton ? verifierJeton(jeton, secret) : null;
 
     if (!utilisateurId) {
-      // 401 = « je ne sais pas qui tu es » (non authentifié)
+      // 401 : non authentifié (jeton absent, invalide ou expiré)
       res.status(401).json({ erreur: "Authentification requise" });
       return;
     }
